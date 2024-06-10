@@ -1,0 +1,1 @@
+Scaffold-DbContext "Server=DANATFP-SHOKAT;Database=SampleDb;User ID=sa;Password=123456;;TrustServerCertificate=true;" Microsoft.EntityFrameworkCore.SqlServer -OutputDir Entities -UseDatabaseNames -Context Sampledb_CommonContext -f
