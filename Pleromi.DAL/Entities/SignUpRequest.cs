@@ -8,7 +8,7 @@ namespace Pleromi.DAL.Entities
 {
     public class SignUpRequest
     {
-        public string? FullName { get; set; }
+        public string? email { get; set; }
         public string? Password { get; set; }
         public string? Mobile { get; set; }
     }

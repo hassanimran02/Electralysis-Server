@@ -27,7 +27,7 @@ namespace Pleromi.Api.Controllers
             try
             {
                 var user = await _context.Users
-                    .Where(u => u.MobileNo == request.Mobile)
+                    .Where(u => u.Email == request.email)
                     .FirstOrDefaultAsync();
 
                 if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.Password))
@@ -69,7 +69,7 @@ namespace Pleromi.Api.Controllers
                 // Create new user
                 var newUser = new User
                 {
-                    FullName = request.FullName,
+                    Email = request.email,
                     MobileNo = request.Mobile,
                     Password = hashedPassword,
                     StatusID = 2,

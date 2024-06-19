@@ -8,7 +8,7 @@ namespace Pleromi.DAL.Entities
 {
     public class SignInRequest
     {
-        public string? Mobile { get; set; }
+        public string? email { get; set; }
         public string? Password { get; set; }
     }
 }

@@ -23,6 +23,76 @@ namespace Pleromi.Api.Controllers
             _context = context;
         }
 
+        private const double OnPeakRate = 41.8900;
+        private const double OffPeakRate = 35.5700;
+
+        public static double? CalculateCostForDay(DateTime day, List<ElectricityUsage> usages)
+        {
+            double totalCost = 0;
+
+            foreach (var usage in usages)
+            {
+                totalCost += CalculateCost(usage.UsageOn, usage.Unit) ?? 0;
+            }
+
+            return totalCost;
+        }
+
+        private double? CalculateCostForWeek(int year, DateTime weekStart, List<ElectricityUsage> usages)
+        {
+            double totalCost = 0;
+
+            foreach (var usage in usages)
+            {
+                totalCost += CalculateCost(usage.UsageOn, usage.Unit) ?? 0;
+            }
+
+            return totalCost;
+        }
+
+        private double? CalculateCostForMonth(int year, int month, List<ElectricityUsage> usages)
+        {
+            double totalCost = 0;
+
+            foreach (var usage in usages)
+            {
+                totalCost += CalculateCost(usage.UsageOn, usage.Unit) ?? 0;
+            }
+
+            return totalCost;
+        }
+
+
+        public static double? CalculateCost(DateTime usageTime, double? units)
+        {
+            double? rate;
+
+            if (usageTime.Month >= 4 && usageTime.Month <= 10) // April to October
+            {
+                if (usageTime.TimeOfDay >= new TimeSpan(18, 30, 0) && usageTime.TimeOfDay <= new TimeSpan(22, 30, 0))
+                {
+                    rate = OnPeakRate;
+                }
+                else
+                {
+                    rate = OffPeakRate;
+                }
+            }
+            else // November to March
+            {
+                if (usageTime.TimeOfDay >= new TimeSpan(18, 0, 0) && usageTime.TimeOfDay <= new TimeSpan(22, 0, 0))
+                {
+                    rate = OnPeakRate;
+                }
+                else
+                {
+                    rate = OffPeakRate;
+                }
+            }
+
+            return units * rate;
+        }
+
         // GET: api/ElectricityUsage/LatestUnit
         [HttpGet("LatestUnit")]
         public async Task<ActionResult<double?>> GetLatestUnit()
@@ -50,14 +120,14 @@ namespace Pleromi.Api.Controllers
 
                 // Fetch data from the database for the past 7 days (including the input date)
                 var dailyData = await _context.ElectricityUsages
-                    .Where(e => e.UsageOn >= startDate && e.UsageOn <= date.Date) // Ensure we cover the entire date range
+                    .Where(e => e.UsageOn >= startDate && e.UsageOn <= date.AddDays(1)) // Ensure we cover the entire date range
                     .GroupBy(e => new { e.UsageOn.Year, e.UsageOn.Month, e.UsageOn.Day })
                     .Select(g => new DailyData
                     {
                         Day = new DateTime(g.Key.Year, g.Key.Month, g.Key.Day),
                         DayOfWeek = new DateTime(g.Key.Year, g.Key.Month, g.Key.Day).DayOfWeek.ToString(),
                         UnitsUsed = g.Sum(e => e.Unit),
-                        Cost = g.Sum(e => e.Unit) * 300 // Assuming cost per unit is 300
+                        Cost = CalculateCostForDay(new DateTime(g.Key.Year, g.Key.Month, g.Key.Day), g.ToList())
                     })
                     .ToListAsync();
 
@@ -124,7 +194,7 @@ namespace Pleromi.Api.Controllers
                     WeekStart = g.Key.WeekStart,
                     Year = g.Key.Year,
                     UnitsUsed = g.Sum(e => e.Unit),
-                    Cost = g.Sum(e => e.Unit) * 300 // Assuming cost per unit is 300
+                    Cost = CalculateCostForWeek(g.Key.Year, g.Key.WeekStart, g.ToList())
                 })
                 .OrderByDescending(g => g.WeekStart) // Latest week first
                 .ToList();
@@ -170,7 +240,7 @@ namespace Pleromi.Api.Controllers
                     {
                         Month = new DateTime(g.Key.Year, g.Key.Month, 1),
                         UnitsUsed = g.Sum(e => e.Unit),
-                        Cost = g.Sum(e => e.Unit) * 300 // Assuming cost per unit is 300
+                        Cost = CalculateCostForMonth(g.Key.Year, g.Key.Month, g.ToList())
                     })
                     .OrderByDescending(m => m.Month)
                     .ToList();
@@ -194,6 +264,29 @@ namespace Pleromi.Api.Controllers
 
                 // Return an error response
                 return StatusCode(500, $"Error fetching monthly data: {ex.Message}");
+            }
+        }
+
+        // GET: api/ElectricityUsage/UnitsByDateTimeRange
+        [HttpGet("UnitsByDateTimeRange")]
+        public async Task<ActionResult<double>> GetUnitsByDateTimeRange(DateTime startDateTime, DateTime endDateTime)
+        {
+            try
+            {
+                // Fetch the sum of units from the database based on the specified datetime range
+                var totalUnits = await _context.ElectricityUsages
+                    .Where(e => e.UsageOn >= startDateTime && e.UsageOn <= endDateTime)
+                    .SumAsync(e => e.Unit);
+
+                return Ok(totalUnits);
+            }
+            catch (Exception ex)
+            {
+                // Log the exception
+                Console.WriteLine($"Error fetching units by datetime range: {ex}");
+
+                // Return an error response
+                return StatusCode(500, $"Error fetching units by datetime range: {ex.Message}");
             }
         }
 
