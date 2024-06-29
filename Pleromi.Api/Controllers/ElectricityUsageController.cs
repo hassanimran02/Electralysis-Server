@@ -62,7 +62,68 @@ namespace Pleromi.Api.Controllers
             return totalCost;
         }
 
+        // GET: api/ElectricityUsage/CostByDateTimeRange
+        [HttpGet("CostByDateTimeRange")]
+        public async Task<ActionResult<double>> GetCostByDateTimeRange(DateTime startDateTime, DateTime endDateTime)
+        {
+            try
+            {
+                // Fetch usage data within the specified datetime range
+                var usages = await _context.ElectricityUsages
+                    .Where(e => e.UsageOn >= startDateTime && e.UsageOn <= endDateTime)
+                    .ToListAsync();
 
+                // Calculate total cost for the datetime range
+                double totalCost = usages.Sum(usage => CalculateCost(usage.UsageOn, usage.Unit) ?? 0);
+
+                return Ok(totalCost);
+            }
+            catch (Exception ex)
+            {
+                // Log the exception
+                Console.WriteLine($"Error fetching cost by datetime range: {ex}");
+
+                // Return an error response
+                return StatusCode(500, $"Error fetching cost by datetime range: {ex.Message}");
+            }
+        }
+
+        [HttpPost("EstimateCostForPredictedUnits")]
+        public async Task<ActionResult<string>> EstimateCostForPredictedUnits(string predictedUnits)
+        {
+            // Ensure predictedUnits is not null or empty
+            if (string.IsNullOrEmpty(predictedUnits))
+            {
+                return BadRequest("Invalid predictedUnits parameter");
+            }
+
+            try
+            {
+                // Convert predictedUnits string to double
+                if (!double.TryParse(predictedUnits, out double parsedUnits))
+                {
+                    return BadRequest("Invalid predictedUnits format");
+                }
+
+                // Now you can use parsedUnits in your calculation
+                double onPeakPercentage = 0.17; // 17%
+                double offPeakPercentage = 1 - onPeakPercentage; // 83%
+
+                // Assuming OnPeakRate and OffPeakRate are defined elsewhere
+                double estimatedCost = (parsedUnits * onPeakPercentage * OnPeakRate) +
+                                       (parsedUnits * offPeakPercentage * OffPeakRate);
+
+                return Ok(estimatedCost);
+            }
+            catch (Exception ex)
+            {
+                // Log the exception
+                Console.WriteLine($"Error estimating cost for predicted units: {ex}");
+
+                // Return an error response
+                return StatusCode(500, $"Error estimating cost for predicted units: {ex.Message}");
+            }
+        }
         public static double? CalculateCost(DateTime usageTime, double? units)
         {
             double? rate;
