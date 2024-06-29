@@ -55,7 +55,7 @@ namespace Pleromi.Api.Controllers
 
                 // Check if the user already exists
                 var existingUser = await _context.Users
-                    .Where(u => u.MobileNo == request.Mobile)
+                    .Where(u => u.MobileNo == request.phone)
                     .FirstOrDefaultAsync();
 
                 if (existingUser != null)
@@ -70,7 +70,7 @@ namespace Pleromi.Api.Controllers
                 var newUser = new User
                 {
                     Email = request.email,
-                    MobileNo = request.Mobile,
+                    MobileNo = request.phone,
                     Password = hashedPassword,
                     StatusID = 2,
                     OTPVerified = true
